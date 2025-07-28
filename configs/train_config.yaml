@@ -1,0 +1,18 @@
+data:
+  train_emb_path: "/path_to_folder/mlsum_TRAIN_embeddings.scp"
+  train_token_path: "/path_to_folder/mlsum_TRAIN_tokens.scp"
+  train_ner_token_path: "/path_to_folder/mlsum_TRAIN_ner.scp"
+  valid_emb_path: "/path_to_folder/mlsum_VALIDATION_embeddings.scp"
+  valid_token_path: "/path_to_folder/mlsum_VALIDATION_tokens.scp"
+  valid_ner_token_path: "/path_to_folder/mlsum_VALIDATION_ner.scp"
+
+model:
+  name: "SBARThez_BGE"
+  checkpoint_path: "checkpoints/sbarthez_1.pth"
+
+training:
+  batch_size: 16
+  num_epochs: 50
+  lr_fc: 0.001
+  lr_decoder: 0.00001
+  weight_decay: 0.00001
