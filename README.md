@@ -22,7 +22,7 @@ pip install -r requirements.txt
 To generate sentence embeddings in scp/ark format for the MLSUM dataset (or any other dataset) using the BGE-M3 model, run:
 
 ```bash
-python generate_scp_ark.py
+python scripts/generate_scp_ark.py
 ```
 
 ### 🏋️ Training 
@@ -30,7 +30,7 @@ python generate_scp_ark.py
 Once the correct dataset paths and training hyperparameters are specified in configs/train_config.yaml, start the training process by running:
 
 ```bash
-python train.py
+python scripts/train.py
 ```
 
 ### 🔍 Inference
@@ -38,7 +38,7 @@ python train.py
 To run inference using the trained model's checkpoints:
 
 ```bash
-python inference.py --ckpt checkpoints/sbarthez_1.pth \
+python scripts/inference.py --ckpt checkpoints/sbarthez_1.pth \
     --embeddings test_emb.scp \
     --tokens test_tok.scp \
     --ner test_ner.scp \
