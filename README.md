@@ -35,7 +35,7 @@ python train.py
 
 ### 🔍 Inference
 
-To run inference using a trained checkpoint:
+To run inference using the trained model's checkpoints:
 
 ```bash
 python inference.py --ckpt checkpoints/sbarthez_1.pth \
