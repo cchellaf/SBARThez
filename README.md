@@ -17,9 +17,9 @@ Install all required packages using:
 pip install -r requirements.txt
 ```
 
-### 🛠️ Data Generation
+### 🛠️ Dataset Preparation : Generation of Sentence embeddings
 
-To generate sentence embeddings for the MLSUM dataset (or any other dataset) using BGE-M3, run:
+To generate sentence embeddings in scp/ark format for the MLSUM dataset (or any other dataset) using the BGE-M3 model, run:
 
 ```bash
 python generate_scp_ark.py
@@ -27,7 +27,7 @@ python generate_scp_ark.py
 
 ### 🏋️ Training 
 
-To launch training, run:
+Once the correct dataset paths and training hyperparameters are specified in configs/train_config.yaml, start the training process by running:
 
 ```bash
 python train.py
