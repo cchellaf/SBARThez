@@ -11,7 +11,7 @@ Abstractive summarization aims to generate concise summaries by creating new sen
 
 SBARThez replaces the token embedding layer of a [BARThez](https://huggingface.co/moussaKam/barthez) sequence-to-sequence model with **sentence-level embeddings** of the source document. Instead of feeding token IDs to the encoder, each source sentence is embedded (by default with [BGE-M3](https://huggingface.co/BAAI/bge-m3)) and the resulting vectors are projected from the embedding dimension (1024) down to the model dimension (768) through a small linear + GELU layer before being passed to the decoder as `inputs_embeds`.
 
-An optional **Named Entity Injection (NEI)** module prepends named-entity tokens — extracted from the source with a [CamemBERT-based French NER model](https://huggingface.co/Jean-Baptiste/camembert-ner) — to the decoder input, encouraging the model to keep the entities present in the generated summary and improving factual consistency. NEI can be turned on or off with a single flag (`with_nei`), so you can train and evaluate both the entity-aware and the plain variants from the same codebase.
+An optional **Named Entity Injection (NEI)** module prepends named-entity tokens — extracted from the source with a [CamemBERT-based French NER model](https://huggingface.co/Jean-Baptiste/camembert-ner) — to the decoder input, in order to improve the factual consistency of generated summaries. NEI can be turned on or off with a single flag (`with_nei`), so you can train and evaluate both the entity-aware and the plain variants from the same codebase.
 
 Data is stored in **Kaldi `ark`/`scp` format**: for each dataset split, three parallel archives are produced (sentence embeddings, tokenized target summaries, and tokenized NER prefixes), keyed by a shared entry ID so they can be re-joined at training time.
 
@@ -28,7 +28,7 @@ SBARThez/
 ├── scripts/
 │   ├── generate_scp_ark.py      # preprocessing: build embeddings/tokens/ner ark+scp
 │   ├── train.py                 # training loop (reads configs/train_config.yaml)
-│   └── inference2.py            # inference + ROUGE / BERTScore evaluation
+│   └── inference.py            # inference + ROUGE / BERTScore evaluation
 ├── checkpoints/                 # saved model checkpoints (.pth)
 ├── requirements.txt
 └── README.md
@@ -100,7 +100,7 @@ training:
   lr_fc:        0.001      # learning rate for the projection layer
   lr_decoder:   0.00001    # learning rate for the BARThez decoder
   weight_decay: 0.00001
-  with_nei:     true       # true = use the NER prefix (NEI); false = plain summarizer
+  with_nei:     true       # true = use the NEI Module; false = no NEI Module used
 ```
 
 Then launch training:
@@ -117,10 +117,10 @@ Notes:
 
 ### 3. Inference & evaluation
 
-Run inference and compute ROUGE (1/2/3/4/L) and BERTScore (French, with and without baseline rescaling) with `scripts/inference2.py`:
+Run inference and compute ROUGE (1/2/3/4/L) and BERTScore (French, with and without baseline rescaling) with `scripts/inference.py`:
 
 ```bash
-python scripts/inference2.py \
+python scripts/inference.py \
     --ckpt checkpoints/sbarthez_nei_1.pth \
     --emb  /path_to_folder/mlsum_TEST_embeddings.scp \
     --tok  /path_to_folder/mlsum_TEST_tokens.scp \
@@ -128,7 +128,7 @@ python scripts/inference2.py \
     --beam
 ```
 
-The `with_nei` setting is **auto-detected from the checkpoint**, so you normally don't need to specify it. If the NER prefix is enabled, `--ner` is required.
+The `with_nei` setting is **auto-detected from the checkpoint**, so you normally don't need to specify it. If the NEI Module is enabled, `--ner` is required.
 
 **Command-line arguments**
 
@@ -142,19 +142,17 @@ The `with_nei` setting is **auto-detected from the checkpoint**, so you normally
 | `--beam_size` | `3` | Beam size (only used with `--beam`). |
 | `--batch_size` | `8` | Inference batch size. |
 | `--max_new_tokens` | `512` | Maximum number of tokens generated per example. |
-| `--with_nei` | *(auto)* | Force-enable the NER prefix, overriding the checkpoint. |
-| `--without_nei` | *(auto)* | Force-disable the NER prefix, overriding the checkpoint. |
+| `--with_nei` | *(auto)* | Force-enable the NEI Module, overriding the checkpoint. |
+| `--without_nei` | *(auto)* | Force-disable the NEI Module, overriding the checkpoint. |
 
 For a model trained **without** NEI, you can omit `--ner`:
 
 ```bash
-python scripts/inference2.py \
+python scripts/inference.py \
     --ckpt checkpoints/sbarthez_1.pth \
     --emb  /path_to_folder/mlsum_TEST_embeddings.scp \
     --tok  /path_to_folder/mlsum_TEST_tokens.scp
 ```
-
-`--with_nei` / `--without_nei` are only needed to override an old-format checkpoint that has no stored metadata; otherwise the script picks the correct setting on its own.
 
 ---
 

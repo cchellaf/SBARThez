@@ -11,13 +11,9 @@ parser = argparse.ArgumentParser(description="Run SBARThez model inference.")
 parser.add_argument("--ckpt", type=str, required=True, help="Path to the model checkpoint (.pth file)")
 parser.add_argument("--emb", type=str, required=True, help="Path to the embedding .scp file")
 parser.add_argument("--tok", type=str, required=True, help="Path to the token .scp file")
-parser.add_argument("--ner", type=str, default=None,
-                     help="Path to the NER token .scp file. Only needed when the checkpoint "
-                          "was trained with with_nei=True (or --with_nei is passed explicitly).")
+parser.add_argument("--ner", type=str, required=True, help="Path to the NER token .scp file")
 parser.add_argument("--beam", action="store_true", help="Use beam search decoding instead of greedy")
 parser.add_argument("--beam_size", type=int, default=3, help="Beam size for beam search decoding")
-parser.add_argument("--batch_size", type=int, default=8, help="Inference batch size")
-parser.add_argument("--max_new_tokens", type=int, default=512, help="Max number of tokens to generate per example")
 # --with_nei / --without_nei let the user force the setting explicitly.
 # If neither is passed, we auto-detect from the checkpoint (see below).
 parser.add_argument("--with_nei", dest="with_nei", action="store_true", default=None,
@@ -28,13 +24,16 @@ args = parser.parse_args()
 
 valid_emb_path = args.emb
 valid_token_path = args.tok
+valid_ner_token_path = args.ner
 checkpoint_path = args.ckpt
+
+test_dataset = KaldiDataset(valid_emb_path, valid_token_path, valid_ner_token_path)
+test_dataloader = DataLoader(test_dataset, batch_size=1, collate_fn=collate_fn)
 
 ##################### MODEL INITIALIZATION ##############################
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SBARThez_BGE().to(device)
 tokenizer = AutoTokenizer.from_pretrained("moussaKam/barthez")
-pad_token_id = tokenizer.pad_token_id if tokenizer.pad_token_id is not None else tokenizer.eos_token_id
 
 checkpoint = torch.load(checkpoint_path, map_location=device)
 
@@ -46,6 +45,8 @@ else:
     checkpoint_with_nei = None
 
 if args.with_nei is not None:
+    # Explicit CLI override takes precedence, but warn if it disagrees
+    # with what the checkpoint says it was trained with.
     with_nei = args.with_nei
     if checkpoint_with_nei is not None and checkpoint_with_nei != with_nei:
         print(f"WARNING: checkpoint was trained with with_nei={checkpoint_with_nei}, "
@@ -61,86 +62,118 @@ else:
 
 model.eval()
 print(f"Running inference with NEI module: {with_nei}", flush=True)
-print(f"Batch size: {args.batch_size} | Beam search: {args.beam} (beam_size={args.beam_size})", flush=True)
-
-if with_nei and args.ner is None:
-    parser.error("--ner is required because with_nei=True (either from the checkpoint or "
-                 "from an explicit --with_nei flag).")
-
-test_dataset = KaldiDataset(valid_emb_path, valid_token_path, args.ner)
-test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, collate_fn=collate_fn)
 
 # Evaluation Metrics
 rouge = evaluate.load("rouge")
 bertscore_metric = evaluate.load("bertscore")
 
 
-def build_ner_prefix_batch(ner_tokens_list, with_nei):
+def build_ner_prefix(ner_tokens, with_nei):
     """
-    ner_tokens_list: list of 1D LongTensors, one per example in the batch
-    (as returned by collate_fn -- lengths vary per example).
-
-    Mirrors the exact padding scheme train_sbarthez.py uses: within a
-    batch, prefixes are right-padded to the length of the *longest prefix
-    in that batch* (not to a fixed max_length), and the [-1] sentinel
-    ("no entities found") becomes an all-pad row. Matching this scheme
-    exactly is what keeps inference consistent with what the model saw
-    during training.
-
-    Returns a (batch_size, max_prefix_len) LongTensor on `device`, or
-    None if with_nei is False.
+    Returns a (1, prefix_len) LongTensor of real NER tokens on `device`,
+    or None if with_nei is False or the NER tokens are the [-1] sentinel
+    (i.e. "no entities found" from preprocessing).
     """
     if not with_nei:
         return None
 
-    batch_size = len(ner_tokens_list)
-    max_prefix_len = max(p.shape[0] for p in ner_tokens_list)
-    padded_prefixes = torch.full((batch_size, max_prefix_len), pad_token_id, dtype=torch.long, device=device)
+    if isinstance(ner_tokens, list):
+        ner_tokens = torch.tensor(ner_tokens, dtype=torch.long)
 
-    for i, p in enumerate(ner_tokens_list):
-        if p.shape[0] == 1 and p[0] == -1:
-            continue  # sentinel: no entities found for this example -> leave row as all-pad
-        padded_prefixes[i, :p.shape[0]] = p.to(device)
+    if ner_tokens.shape[0] == 1 and ner_tokens[0] == -1:
+        return None  # no entities were found for this example
 
-    return padded_prefixes
+    return ner_tokens.unsqueeze(0).to(device)
 
 
-def generate_batch(model, embedding, attention_mask, ner_tokens_list, with_nei, beam, beam_size, max_new_tokens):
-    """
-    Builds the forced decoder prefix (NER prefix + <bos>, matching
-    training's layout) and delegates generation to the model's own
-    .generate(), batched across the whole DataLoader batch at once.
+def generate_summary_greedy(embedding_sequence, attention_mask, ner_tokens, with_nei, max_length=512):
 
-    Returns:
-        generated_texts: list[str], decoded continuations only (prefix stripped)
-        prefix_len: int, width of the forced prefix that was stripped
-    """
-    batch_size = embedding.shape[0]
+    # Prepare input token
+    input_token = torch.tensor([[tokenizer.bos_token_id]]).to(device)
 
-    ner_prefix = build_ner_prefix_batch(ner_tokens_list, with_nei)
-    bos_col = torch.full((batch_size, 1), tokenizer.bos_token_id, dtype=torch.long, device=device)
-    decoder_input_ids = torch.cat([ner_prefix, bos_col], dim=1) if ner_prefix is not None else bos_col
+    ner_prefix = build_ner_prefix(ner_tokens, with_nei)
+    if ner_prefix is not None:
+        input_token = torch.cat([ner_prefix, input_token], dim=1)  # Concatenate NER tokens
 
-    generated = model.generate(
-        embedding.to(device),
-        attention_mask.to(device),
-        decoder_input_ids=decoder_input_ids,
-        max_new_tokens=max_new_tokens,
-        num_beams=beam_size if beam else 1,
-        early_stopping=beam,
-        pad_token_id=pad_token_id,
-        eos_token_id=tokenizer.eos_token_id,
-    )
+    output_tokens = []
 
-    prefix_len = decoder_input_ids.shape[1]
-    generated_only = generated[:, prefix_len:]
-    generated_texts = tokenizer.batch_decode(generated_only, skip_special_tokens=True)
-    return generated_texts, prefix_len
+    for i in range(max_length):
+        with torch.no_grad():
+            output = model(embedding_sequence.to(device), attention_mask.to(device), input_token)
+            logits = output.logits[:, -1, :]
+
+        next_token = logits.argmax(dim=-1, keepdim=True)
+
+        output_tokens.append(next_token.item())
+        if next_token.item() == tokenizer.eos_token_id:
+            break
+        input_token = torch.cat([input_token, next_token], dim=-1)    
+
+    return tokenizer.decode(output_tokens, skip_special_tokens=True)
+
+############ BEAM SEARCH IMPLEMENTATION ################
+def generate_summary_beam(embedding_sequence, attention_mask, ner_tokens, with_nei, max_length=512, beam_size=3):
+
+    # Prepare input token
+    input_token = torch.tensor([[tokenizer.bos_token_id]], device=device)
+
+    ner_prefix = build_ner_prefix(ner_tokens, with_nei)
+    num_ner_tokens = 0
+    if ner_prefix is not None:
+        input_token = torch.cat([ner_prefix, input_token], dim=1)
+        num_ner_tokens = ner_prefix.shape[1]
+
+    # Initialize beams
+    beams = [(input_token, 0)]  # (sequence, cumulative log probability)
+    completed_sequences = []
+
+    for _ in range(max_length):
+        new_beams = []
+        
+        for seq, score in beams:
+            with torch.no_grad():
+                output = model(embedding_sequence.to(device), attention_mask.to(device), seq)
+                logits = output.logits[:, -1, :]
+
+            probs = torch.nn.functional.log_softmax(logits, dim=-1)
+            top_k_probs, top_k_tokens = probs.topk(beam_size, dim=-1)
+            
+            for i in range(beam_size):
+                new_token = top_k_tokens[:, i].unsqueeze(0) 
+                new_score = score + top_k_probs[:, i].item()
+                
+                new_seq = torch.cat([seq, new_token], dim=-1) 
+                
+                if new_token.item() == tokenizer.eos_token_id:
+                    completed_sequences.append((new_seq, new_score))
+                else:
+                    new_beams.append((new_seq, new_score))
+        
+        # Sort beams by cumulative probability and keep top `beam_size`
+        beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_size]
+        
+        if len(completed_sequences) >= beam_size:
+            break
+
+    if completed_sequences:
+        best_sequence = max(completed_sequences, key=lambda x: x[1])[0]
+    else:
+        best_sequence = max(beams, key=lambda x: x[1])[0]  
+
+    return tokenizer.decode(best_sequence.squeeze(0)[num_ner_tokens:].tolist(), skip_special_tokens=True)
 
 
 # Evaluate on test set
 print('START EVALUATION ...', flush=True)
 predictions, references = [], []
+
+rouge_scores_L = []
+rouge_scores_1 = []
+rouge_scores_2 = []
+rouge_scores_3 = []
+rouge_scores_4 = []
+bertscore_scores = []
+bertscore_scores_resc = []
 
 cpt = 0
 model.eval()
@@ -149,28 +182,28 @@ with torch.no_grad():
         cpt += 1
         embedding = embedding.to(device)
 
-        generated_summaries, prefix_len = generate_batch(
-            model, embedding, attention_mask, ner_tokens,
-            with_nei, args.beam, args.beam_size, args.max_new_tokens,
-        )
+        if args.beam:
+            generated_summary = generate_summary_beam(embedding, attention_mask, ner_tokens[0], with_nei, beam_size=args.beam_size)
+        else:
+            generated_summary = generate_summary_greedy(embedding, attention_mask, ner_tokens[0], with_nei)
 
-        predictions.extend(generated_summaries)
-        true_summaries = tokenizer.batch_decode(summary[:, 1:].cpu(), skip_special_tokens=True)
-        references.extend(true_summaries)
+        predictions.extend([generated_summary])
+        true_summary = tokenizer.batch_decode(summary[:, 1:].cpu(), skip_special_tokens=True)
 
-        if with_nei:
-            for i, p in enumerate(ner_tokens):
-                if p.shape[0] > 1 or (p.shape[0] == 1 and p[0] != -1):
-                    ner_decoded = tokenizer.decode([int(t) for t in p], skip_special_tokens=True)
-                    print(f"NER TOKENS (sample {i}): {ner_decoded}")
+        if with_nei and (ner_tokens[0].shape[0] > 1 or (ner_tokens[0].shape[0] == 1 and ner_tokens[0][0] != -1)):
+            ner_tokens_int = [[int(token) for token in seq] for seq in ner_tokens]  # Convert to integers
+            ner_tokens_decoded = tokenizer.batch_decode(ner_tokens_int, skip_special_tokens=True)
 
-        print(f'BATCH = {cpt}', flush=True)
-        for gen, ref in zip(generated_summaries, true_summaries):
-            print('GENERATED SUMMARY : ', flush=True)
-            print(gen, flush=True)
-            print('TRUE SUMMARY : ', flush=True)
-            print(ref, flush=True)
-            print("#####################################")
+            print('NER TOKENS : ')
+            print(ner_tokens_decoded)
+
+        references.extend(true_summary)
+        print(f'CPT = {cpt}', flush=True)
+        print('GENERATED SUMMARY : ', flush=True)
+        print(generated_summary, flush=True)
+        print('TRUE SUMMARY : ', flush=True)
+        print(true_summary, flush=True)
+        print("#####################################")
 
 
 # After collecting predictions and references
