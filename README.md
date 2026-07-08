@@ -11,9 +11,8 @@ Abstractive summarization aims to generate concise summaries by creating new sen
 
 ## Overview
 
-![SBARThez architecture](assets/architecture.png)
 <p align="center">
-  <img src="assets/architecture.png" alt="SBARThez architecture" width="700"/>
+  <img src="assets/newsumm_archi.drawio_page-0001.jpg" alt="SBARThez architecture" width="700"/>
 </p>
 
 SBARThez replaces the token embedding layer of a [BARThez](https://huggingface.co/moussaKam/barthez) sequence-to-sequence model with **sentence-level embeddings** of the source document. Instead of feeding token IDs to the encoder, each source sentence is embedded (by default with [BGE-M3](https://huggingface.co/BAAI/bge-m3)) and the resulting vectors are projected from the embedding dimension (1024) down to the model dimension (768) through a small linear + GELU layer before being passed to the decoder as `inputs_embeds`.
