@@ -1,10 +1,10 @@
 data:
-  train_emb_path: "/path_to_folder/mlsum_TRAIN_embeddings.scp"
-  train_token_path: "/path_to_folder/mlsum_TRAIN_tokens.scp"
-  train_ner_token_path: "/path_to_folder/mlsum_TRAIN_ner.scp"
-  valid_emb_path: "/path_to_folder/mlsum_VALIDATION_embeddings.scp"
-  valid_token_path: "/path_to_folder/mlsum_VALIDATION_tokens.scp"
-  valid_ner_token_path: "/path_to_folder/mlsum_VALIDATION_ner.scp"
+  train_emb_path: "dataset/data/mlsum_TRAIN_embeddings.scp"
+  train_token_path: "dataset/data/mlsum_TRAIN_tokens.scp"
+  train_ner_token_path: "dataset/data/mlsum_TRAIN_ner.scp"
+  valid_emb_path: "dataset/data/mlsum_VALIDATION_embeddings.scp"
+  valid_token_path: "dataset/data/mlsum_VALIDATION_tokens.scp"
+  valid_ner_token_path: "dataset/data/mlsum_VALIDATION_ner.scp"
 
 model:
   name: "SBARThez_BGE"

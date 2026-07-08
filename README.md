@@ -135,9 +135,9 @@ Run inference and compute ROUGE (1/2/3/4/L) and BERTScore (French, with and with
 ```bash
 python scripts/inference.py \
     --ckpt checkpoints/sbarthez_nei_1.pth \
-    --emb  /path_to_folder/mlsum_TEST_embeddings.scp \
-    --tok  /path_to_folder/mlsum_TEST_tokens.scp \
-    --ner  /path_to_folder/mlsum_TEST_ner.scp \
+    --emb  dataset/data/mlsum_TEST_embeddings.scp \
+    --tok  dataset/data/mlsum_TEST_tokens.scp \
+    --ner  dataset/data/mlsum_TEST_ner.scp \
     --beam
 ```
 
@@ -163,8 +163,8 @@ For a model trained **without** NEI, you can omit `--ner`:
 ```bash
 python scripts/inference.py \
     --ckpt checkpoints/sbarthez_1.pth \
-    --emb  /path_to_folder/mlsum_TEST_embeddings.scp \
-    --tok  /path_to_folder/mlsum_TEST_tokens.scp
+    --emb  dataset/data/mlsum_TEST_embeddings.scp \
+    --tok  dataset/data/mlsum_TEST_tokens.scp
 ```
 
 ---

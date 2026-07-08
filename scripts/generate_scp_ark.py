@@ -20,13 +20,25 @@ import torch
 # Each entry's records across the three archives share the same key
 # (entry_id), so they can be re-joined later at training time.
 mode = "TRAIN"
-input_file = f"/path_to_folder/mlsum_{mode}.jsonl"     ### Assuming the jsonl file contains keys : id, text, summary
-embedding_ark_file = f"/path_to_folder/mlsum_{mode}_embeddings.ark"
-embedding_scp_file = f"/path_to_folder/mlsum_{mode}_embeddings.scp"
-tokens_ark_file = f"/path_to_folder/mlsum_{mode}_tokens.ark"
-tokens_scp_file = f"/path_to_folder/mlsum_{mode}_tokens.scp"
-ner_ark_file = f"/path_to_folder/mlsum_{mode}_ner.ark" 
-ner_scp_file = f"/path_to_folder/mlsum_{mode}_ner.scp" 
+
+# Input JSONL for this split (keys expected: id, text, summary).
+input_file = f"/path_to_folder/mlsum_{mode}.jsonl"
+
+# ---------------------------------------------------------------------------
+# Output directory
+# ---------------------------------------------------------------------------
+# All generated ark/scp files are written into <repo_root>/dataset/data/.
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+output_dir = os.path.join(PROJECT_ROOT, "dataset", "data")
+os.makedirs(output_dir, exist_ok=True)
+
+embedding_ark_file = os.path.join(output_dir, f"mlsum_{mode}_embeddings.ark")
+embedding_scp_file = os.path.join(output_dir, f"mlsum_{mode}_embeddings.scp")
+tokens_ark_file = os.path.join(output_dir, f"mlsum_{mode}_tokens.ark")
+tokens_scp_file = os.path.join(output_dir, f"mlsum_{mode}_tokens.scp")
+ner_ark_file = os.path.join(output_dir, f"mlsum_{mode}_ner.ark")
+ner_scp_file = os.path.join(output_dir, f"mlsum_{mode}_ner.scp")
 
 
 # ---------------------------------------------------------------------------
