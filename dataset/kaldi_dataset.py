@@ -8,7 +8,7 @@ tokenizer = AutoTokenizer.from_pretrained("moussaKam/barthez")
 
 
 class KaldiDataset(Dataset):
-    def __init__(self, embeddings_scp, tokens_scp, ner_scp):
+    def __init__(self, embeddings_scp, tokens_scp, ner_scp=None):
         """
         Args:
             embeddings_scp: Path to SCP file containing embeddings.
@@ -18,7 +18,10 @@ class KaldiDataset(Dataset):
         # Load embeddings and tokens
         embeddings = {key: mat for key, mat in kaldi_io.read_mat_scp(embeddings_scp)}
         tokens = {key: [int(x) for x in vec] for key, vec in kaldi_io.read_vec_flt_scp(tokens_scp)}
-        ner_tokens = {key: [int(x) for x in vec] for key, vec in kaldi_io.read_vec_flt_scp(ner_scp)}
+        if ner_scp is not None:
+            ner_tokens = {key: [int(x) for x in vec] for key, vec in kaldi_io.read_vec_flt_scp(ner_scp)}
+        else:
+            ner_tokens = None
 
         # Find common keys
         common_keys = set(embeddings.keys()) & set(tokens.keys())
@@ -26,7 +29,10 @@ class KaldiDataset(Dataset):
         # Keep only the common keys
         self.embeddings = {key: embeddings[key] for key in common_keys}
         self.tokens = {key: tokens[key] for key in common_keys}
-        self.ner_tokens = {key: ner_tokens[key] for key in common_keys}
+        if ner_tokens is not None:
+            self.ner_tokens = {key: ner_tokens.get(key, [-1]) for key in common_keys}
+        else:
+            self.ner_tokens = {key: ner_tokens[key] for key in common_keys}
         self.keys = list(common_keys)
 
     def __len__(self):

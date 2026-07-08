@@ -28,6 +28,12 @@ lr_fc = config["training"]["lr_fc"]
 lr_decoder = config["training"]["lr_decoder"]
 weight_decay = config["training"]["weight_decay"]
 
+# Whether to prepend the named-entity (NEI) prefix tokens to the decoder
+# input/output. If False, training proceeds exactly as if no NER module
+# existed (plain summary tokens only). Defaults to True if not set in the
+# config, to preserve prior behavior.
+with_nei = config["training"].get("with_nei", True)
+
 checkpoint_path = config["model"]["checkpoint_path"]
 
 ##################### DATA LOADING ##############################
@@ -56,6 +62,9 @@ scheduler_decoder = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer_decoder
 criterion = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 
 scaler = GradScaler()
+
+print(f"Training with NEI module: {with_nei}", flush=True)
+
 ##################### TRAINING ##############################
 best_val_loss = float("inf")
 
@@ -71,23 +80,25 @@ for epoch in range(num_epochs):
         optimizer_decoder.zero_grad()
 
         embedding, tgt_input, tgt_output = embedding.to(device), summary[:, :-1].to(device), summary[:, 1:].to(device)
-        batch_size = tgt_input.shape[0]
-        batch_prefixes = ner_tokens
 
-        # Pad and concatenate prefixes to form a tensor of shape (batch_size, prefix_length)
-        max_prefix_len = max(p.shape[0] for p in batch_prefixes)
-        padded_prefixes = torch.full((batch_size, max_prefix_len), tokenizer.pad_token_id, dtype=torch.long, device=device)
+        if with_nei:
+            batch_size = tgt_input.shape[0]
+            batch_prefixes = ner_tokens
 
-        for i, p in enumerate(batch_prefixes):
-            if p.shape[0] == 1 and p[0] == -1:  # Check if the NER tokens are just [-1]
-                cpt += 1
+            # Pad and concatenate prefixes to form a tensor of shape (batch_size, prefix_length)
+            max_prefix_len = max(p.shape[0] for p in batch_prefixes)
+            padded_prefixes = torch.full((batch_size, max_prefix_len), tokenizer.pad_token_id, dtype=torch.long, device=device)
 
-            else : 
-                padded_prefixes[i, : p.shape[0]] = p  # Add prefix only if it's not [-1]
-            
-        # Concatenate prefix with tgt_input
-        tgt_input = torch.cat([padded_prefixes, tgt_input], dim=1)
-        tgt_output = torch.cat([padded_prefixes, tgt_output], dim=1)  
+            for i, p in enumerate(batch_prefixes):
+                if p.shape[0] == 1 and p[0] == -1:  # Check if the NER tokens are just [-1]
+                    cpt += 1
+
+                else : 
+                    padded_prefixes[i, : p.shape[0]] = p  # Add prefix only if it's not [-1]
+
+            # Concatenate prefix with tgt_input
+            tgt_input = torch.cat([padded_prefixes, tgt_input], dim=1)
+            tgt_output = torch.cat([padded_prefixes, tgt_output], dim=1)
 
         max_len = 1024
         found = False
@@ -126,20 +137,21 @@ for epoch in range(num_epochs):
         for embedding, attention_mask, summary, ner_tokens in val_dataloader:
             embedding, tgt_input, tgt_output = embedding.to(device), summary[:, :-1].to(device), summary[:, 1:].to(device)
 
-            batch_size = tgt_input.shape[0]
-            batch_prefixes = ner_tokens
+            if with_nei:
+                batch_size = tgt_input.shape[0]
+                batch_prefixes = ner_tokens
 
-            max_prefix_len = max(p.shape[0] for p in batch_prefixes)
-            padded_prefixes = torch.full((batch_size, max_prefix_len), tokenizer.pad_token_id, dtype=torch.long, device=device)
+                max_prefix_len = max(p.shape[0] for p in batch_prefixes)
+                padded_prefixes = torch.full((batch_size, max_prefix_len), tokenizer.pad_token_id, dtype=torch.long, device=device)
 
-            for i, p in enumerate(batch_prefixes):
-                if p.shape[0] == 1 and p[0] == -1:
-                    cpt_val += 1
-                else : 
-                    padded_prefixes[i, : p.shape[0]] = p
+                for i, p in enumerate(batch_prefixes):
+                    if p.shape[0] == 1 and p[0] == -1:
+                        cpt_val += 1
+                    else : 
+                        padded_prefixes[i, : p.shape[0]] = p
 
-            tgt_input = torch.cat([padded_prefixes, tgt_input], dim=1)
-            tgt_output = torch.cat([padded_prefixes, tgt_output], dim=1)  
+                tgt_input = torch.cat([padded_prefixes, tgt_input], dim=1)
+                tgt_output = torch.cat([padded_prefixes, tgt_output], dim=1)
 
             with autocast(): 
                 output = model(embedding, attention_mask.to(device), tgt_input, tgt_output.reshape(-1))
@@ -153,7 +165,10 @@ for epoch in range(num_epochs):
     
     if avg_val_loss < best_val_loss:
         best_val_loss = avg_val_loss
-        torch.save(model.state_dict(), checkpoint_path)
+        torch.save({
+            "model_state_dict": model.state_dict(),
+            "with_nei": with_nei,
+        }, checkpoint_path)
         print(f"✅ New best model saved at {checkpoint_path}", flush=True)
 
     scheduler_fc.step(avg_val_loss)
