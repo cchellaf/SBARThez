@@ -47,13 +47,19 @@ SBARThez/
 Install the Python dependencies with:
 
 ```bash
-# Create the env at a path you choose, with a Python version
+# 1. Clone the repository
+git clone https://github.com/cchellaf/SBARThez.git
+
+# 2. Move into the project folder
+cd SBARThez
+
+# 3. Create a conda env at a path you choose, with a Python version
 conda create -p /path/to/envs/sbarthez python=3.10 -y
 
-# Activate it (with a prefix env you activate by path, not by name)
+# 4. Activate it (with a prefix env you activate by path, not by name)
 conda activate /path/to/envs/sbarthez
 
-# Now install the project dependencies
+# 5. Install the project dependencies
 pip install -r requirements.txt
 ```
 
