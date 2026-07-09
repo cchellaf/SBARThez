@@ -188,19 +188,6 @@ pip install huggingface_hub
 huggingface-cli download cchellaf/sbarthez_nei sbarthez_nei_mlsum1.pth --local-dir checkpoints
 huggingface-cli download cchellaf/sbarthez_nei sbarthez_nei_orange1.pth --local-dir checkpoints
 ```
- 
-or directly from Python:
- 
-```python
-from huggingface_hub import hf_hub_download
- 
-path = hf_hub_download(
-    repo_id="cchellaf/sbarthez_nei",
-    filename="sbarthez_nei_mlsum1.pth",
-    local_dir="checkpoints",
-)
-print("Downloaded to:", path)
-``` 
 ---
 
 ## Citation
