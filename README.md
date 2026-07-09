@@ -63,9 +63,7 @@ conda activate /path/to/envs/sbarthez
 pip install -r requirements.txt
 ```
 
-**Note on PyTorch / GPU.** If you plan to train or run inference on a GPU, install the `torch` build that matches your CUDA version from the [official PyTorch instructions](https://pytorch.org/get-started/locally/) rather than relying on the plain PyPI wheel, which may be CPU-only.
-
-**Pre-trained models.** The BGE-M3 embedding model (`BAAI/bge-m3`), the BARThez tokenizer/model (`moussaKam/barthez`), and the CamemBERT NER model (`Jean-Baptiste/camembert-ner`) are downloaded automatically from the Hugging Face Hub the first time you run the scripts, so no manual download step is required — only network access.
+**Note on PyTorch / GPU.** If you plan to train or run inference on a GPU, it's better to install the `torch` build that matches your CUDA version from the [official PyTorch instructions](https://pytorch.org/get-started/locally/) rather than relying on the plain PyPI wheel, which may be CPU-only.
 
 ---
 
