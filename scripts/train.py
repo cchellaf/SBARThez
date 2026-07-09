@@ -44,6 +44,10 @@ checkpoint_path = config["model"]["checkpoint_path"]
 train_dataset = KaldiDataset(train_emb_path, train_token_path, train_ner_token_path)
 val_dataset = KaldiDataset(valid_emb_path, valid_token_path, valid_ner_token_path)
 
+# Report how many samples were loaded for each split
+print(f"Loaded {len(train_dataset)} training samples", flush=True)
+print(f"Loaded {len(val_dataset)} validation samples", flush=True)
+
 train_dataloader = DataLoader(train_dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=True, num_workers=4, pin_memory=True)
 val_dataloader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn, num_workers=4, pin_memory=True)
 
