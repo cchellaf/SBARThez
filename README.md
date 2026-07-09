@@ -88,7 +88,7 @@ Then run it once per split:
 python scripts/generate_scp_ark.py
 ```
 
-This will produce `*_embeddings.scp`, `*_tokens.scp`, and `*_ner.scp` (plus their `.ark` counterparts) for the chosen split.
+This will produce `*_embeddings.scp`, `*_tokens.scp`, and `*_ner.scp` (plus their `.ark` counterparts) for the chosen split, and will be saved in the folder `dataset/data`.
 
 ### 2. Training
 
