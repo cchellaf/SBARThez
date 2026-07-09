@@ -79,7 +79,7 @@ Open the script and set the file paths and split name at the top:
 
 ```python
 mode = "TRAIN"   # or "VALIDATION" / "TEST"
-input_file          = f"dataset/data/mlsum_{mode}.jsonl"
+input_file = f"/path_to_jsonl/mlsum_{mode}.jsonl"
 ```
 
 Then run it once per split:
