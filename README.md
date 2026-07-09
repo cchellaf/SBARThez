@@ -79,13 +79,7 @@ Open the script and set the file paths and split name at the top:
 
 ```python
 mode = "TRAIN"   # or "VALIDATION" / "TEST"
-input_file          = f"/path_to_folder/mlsum_{mode}.jsonl"
-embedding_ark_file  = f"/path_to_folder/mlsum_{mode}_embeddings.ark"
-embedding_scp_file  = f"/path_to_folder/mlsum_{mode}_embeddings.scp"
-tokens_ark_file     = f"/path_to_folder/mlsum_{mode}_tokens.ark"
-tokens_scp_file     = f"/path_to_folder/mlsum_{mode}_tokens.scp"
-ner_ark_file        = f"/path_to_folder/mlsum_{mode}_ner.ark"
-ner_scp_file        = f"/path_to_folder/mlsum_{mode}_ner.scp"
+input_file          = f"dataset/data/mlsum_{mode}.jsonl"
 ```
 
 Then run it once per split:
@@ -102,12 +96,12 @@ Set your data paths and hyperparameters in `configs/train_config.yaml`:
 
 ```yaml
 data:
-  train_emb_path:       "/path_to_folder/mlsum_TRAIN_embeddings.scp"
-  train_token_path:     "/path_to_folder/mlsum_TRAIN_tokens.scp"
-  train_ner_token_path: "/path_to_folder/mlsum_TRAIN_ner.scp"
-  valid_emb_path:       "/path_to_folder/mlsum_VALIDATION_embeddings.scp"
-  valid_token_path:     "/path_to_folder/mlsum_VALIDATION_tokens.scp"
-  valid_ner_token_path: "/path_to_folder/mlsum_VALIDATION_ner.scp"
+  train_emb_path:       "dataset/data/mlsum_TRAIN_embeddings.scp"
+  train_token_path:     "dataset/data/mlsum_TRAIN_tokens.scp"
+  train_ner_token_path: "dataset/data/mlsum_TRAIN_ner.scp"
+  valid_emb_path:       "dataset/data/mlsum_VALIDATION_embeddings.scp"
+  valid_token_path:     "dataset/data/mlsum_VALIDATION_tokens.scp"
+  valid_ner_token_path: "dataset/data/mlsum_VALIDATION_ner.scp"
 
 model:
   name: "SBARThez_BGE"

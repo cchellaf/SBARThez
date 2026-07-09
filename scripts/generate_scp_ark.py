@@ -7,6 +7,7 @@ import kaldi_io
 import numpy as np
 import itertools
 import torch
+import os
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +54,6 @@ embedding_model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=True)
 # Initialize NER pipeline using the CamemBERT-based French NER system.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 ner_pipeline = pipeline("ner", model="Jean-Baptiste/camembert-ner", aggregation_strategy="simple", device=device)
-
 
 def extract_named_entities_hf(text, threshold=0.9):
     """
