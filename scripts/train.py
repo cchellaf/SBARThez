@@ -1,3 +1,6 @@
+import sys, os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dataset.kaldi_dataset import KaldiDataset, collate_fn
 from models.sbarthez_model import SBARThez_BGE
 from torch.utils.data import DataLoader
