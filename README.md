@@ -169,6 +169,40 @@ python scripts/inference.py \
 
 ---
 
+## Pre-trained checkpoints
+ 
+Trained SBARThez (BGE-M3 + NEI) checkpoints are available on the Hugging Face Hub at
+[**cchellaf/sbarthez_nei**](https://huggingface.co/cchellaf/sbarthez_nei):
+ 
+| File | Training data | NEI module | Description |
+|---|---|---|---|
+| `sbarthez_nei_mlsum1.pth` | MLSUM (French) | ✅ | Model trained on MLSUM with the Named Entity Injection module. This is the **first-stage** model in the paper and can be used as an initialization for further fine-tuning on other datasets. |
+| `sbarthez_nei_orange1.pth` | OrangeSum | ✅ | Model trained on OrangeSum with the Named Entity Injection module. It is **not** trained from scratch: training was **continued from `sbarthez_nei_mlsum1.pth`**, i.e. the MLSUM checkpoint was used as the starting point and then fine-tuned on OrangeSum. |
+ 
+**Downloading.** Grab a checkpoint and place it in the `checkpoints/` folder. For example, with the Hugging Face CLI:
+ 
+```bash
+pip install huggingface_hub
+ 
+# download a single checkpoint into ./checkpoints/
+huggingface-cli download cchellaf/sbarthez_nei sbarthez_nei_mlsum1.pth --local-dir checkpoints
+huggingface-cli download cchellaf/sbarthez_nei sbarthez_nei_orange1.pth --local-dir checkpoints
+```
+ 
+or directly from Python:
+ 
+```python
+from huggingface_hub import hf_hub_download
+ 
+path = hf_hub_download(
+    repo_id="cchellaf/sbarthez_nei",
+    filename="sbarthez_nei_mlsum1.pth",
+    local_dir="checkpoints",
+)
+print("Downloaded to:", path)
+``` 
+---
+
 ## Citation
 
 If you use this code or build on our work, please cite:
