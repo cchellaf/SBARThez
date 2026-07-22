@@ -117,8 +117,11 @@ for epoch in range(num_epochs):
         if found:
             continue
 
+        labels = tgt_output.clone()
+        labels[labels == tokenizer.pad_token_id] = -100
+
         with autocast():  # Enables mixed precision
-            output = model(embedding, attention_mask.to(device), tgt_input, tgt_output.reshape(-1))
+            output = model(embedding, attention_mask.to(device), tgt_input, labels.reshape(-1))
             loss = output.loss
 
         scaler.scale(loss).backward()
@@ -160,8 +163,12 @@ for epoch in range(num_epochs):
                 tgt_input = torch.cat([padded_prefixes, tgt_input], dim=1)
                 tgt_output = torch.cat([padded_prefixes, tgt_output], dim=1)
 
+
+            labels = tgt_output.clone()
+            labels[labels == tokenizer.pad_token_id] = -100
+
             with autocast(): 
-                output = model(embedding, attention_mask.to(device), tgt_input, tgt_output.reshape(-1))
+                output = model(embedding, attention_mask.to(device), tgt_input, labels.reshape(-1))
                 loss = output.loss
                 
             val_loss += loss.item()
